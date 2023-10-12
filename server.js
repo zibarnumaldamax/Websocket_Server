@@ -1,3 +1,4 @@
+const fs = require('fs');
 const WebSocket = require('ws');
 
 const keywords = {
@@ -13,19 +14,37 @@ const keywords = {
   // Другие ключевые слова с соответствующими URL
 };
 
+let MAX_CONCURRENT_THREADS = 1; 
+fs.readFile('config.txt', 'utf8', function(err, data) {
+  if (!err) {
+    MAX_CONCURRENT_THREADS = Number(data);
+    console.log('MAX_CONCURRENT_THREADS set to', MAX_CONCURRENT_THREADS);
+  } else {
+    console.error('Failed to read config.txt:', err);
+  }
+}); 
+
 const server = new WebSocket.Server({ port: 8080 });
 
 server.on('connection', (socket) => {
   console.log('Client connected');
+  let threadCount = 0; 
 
   socket.on('message', (message) => {
     console.log(`Received message: ${message}`);
     const urls = keywords[message];
+    if (threadCount < MAX_CONCURRENT_THREADS) {
+      threadCount++;
 
-    if (urls) {
-      socket.send(JSON.stringify(urls));
+      if (urls) {
+        socket.send(JSON.stringify(urls));
+      } else {
+        socket.send(JSON.stringify(new String('empty')));
+      }
+
+      console.log('Started stream');
     } else {
-      socket.send(JSON.stringify(new String('empty')));
+      console.log('Maximum concurrent streams reached');
     }
   });
 
